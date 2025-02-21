@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi Chorale - Gestion des Membres</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 15px 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .tab-content {
+            margin-top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .nav-tabs {
+            border: none;
+            margin-bottom: -1px;
+        }
+
+        .nav-tabs .nav-link {
+            color: var(--primary-color);
+            border: none;
+            padding: 10px 20px;
+            margin-right: 5px;
+            border-radius: 10px 10px 0 0;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tabs .nav-link:hover {
+            background-color: rgba(44, 62, 80, 0.1);
+        }
+
+        .nav-tabs .nav-link.active {
+            background-color: white;
+            color: var(--secondary-color);
+            font-weight: bold;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+        }
+
+        .table {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table thead th {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        .amount-input {
+            max-width: 100px;
+        }
+
+        .date-column {
+            white-space: nowrap;
+            min-width: 150px;
+        }
+
+        .export-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .btn-group {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .btn-action {
+            margin: 0 5px;
+            border-radius: 8px;
+            padding: 8px 16px;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .header {
+                background-color: white !important;
+                color: black !important;
+                box-shadow: none;
+            }
+            .table thead th {
+                background-color: white !important;
+                color: black !important;
+                border: 1px solid #dee2e6;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .table-responsive {
+                overflow-x: auto;
+            }
+            .export-btn {
+                position: static;
+                margin-top: 20px;
+                text-align: center;
+            }
+        }
+
+
+        @media print {
+            @page {
+                size: portrait;
+                margin: 1cm;
+            }
+    
+            body {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+    
+            table {
+                page-break-inside: avoid;
+                width: 100%;
+            }
+    
+            th, td {
+                font-size: 10px; /* Encore plus petit pour l'impression */
+                padding: 2px;
+            }
+    
+            .amount-input {
+                width: 60px;
+            }
+    
+            input[type="checkbox"] {
+                transform: scale(0.8);
+            }
+    
+            /* Masquer les éléments non nécessaires pour l'impression */
+            .no-print {
+                display: none !important;
+            }
+    
+            /* Ajuster la largeur des colonnes */
+            .date-column {
+                width: 8%;
+            }
+    
+            .name-column {
+                width: 15%;
+            }
+    
+            .checkbox-column {
+                width: 6%;
+            }
+    
+            .amount-column {
+                width: 8%;
+            }
+        }
+    
+        /* Styles pour les colonnes spécifiques */
+        .presence-absence-group {
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1 class="text-center mb-4">Suivi de la Chorale</h1>
+            <div class="text-center">
+                <input type="date" id="currentDate" class="form-control d-inline-block" style="max-width: 200px;" 
+                       onchange="updateCurrentDate(this.value)">
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid py-4">
+        <!-- Onglets -->
+        <ul class="nav nav-tabs nav-fill no-print" id="choirTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#soprano">Soprano</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#alto">Alto</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tenor">Ténor</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#basse">Basse</button>
+            </li>
+        </ul>
+
+        <!-- Contenu des onglets -->
+        <div class="tab-content" id="choirTabContent">
+            <div class="tab-pane fade show active" id="soprano">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="sopranoTable">
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="alto">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="altoTable">
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="tenor">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="tenorTable">
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="basse">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="basseTable">
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Boutons d'action -->
+        <div class="export-btn no-print">
+            <div class="btn-group">
+                <button class="btn btn-success btn-action" onclick="addNewMember()">
+                    <i class="bi bi-plus-circle"></i> Ajouter
+                </button>
+                <button class="btn btn-primary btn-action" onclick="exportToExcel()">
+                    <i class="bi bi-file-excel"></i> Exporter
+                </button>
+                <button style="display:none;"  class="btn btn-secondary btn-action" onclick="window.print()">
+                    <i class="bi bi-printer"></i> Imprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- [Le script JavaScript reste identique à celui que vous avez fourni] -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+       
+        let choirData = {
+            soprano: {},
+            alto: {},
+            tenor: {},
+            basse: {}
+        };
+        
+        let currentDate = new Date().toISOString().split('T')[0];
+        let membersList = {
+            soprano: [],
+            alto: [],
+            tenor: [],
+            basse: []
+        };
+        
+        const columns = [
+            { id: 'date', title: 'Date', type: 'date' },
+            { id: 'name', title: 'Nom & Prénom' },
+            { id: 'repetition', title: 'Présence répétitions', type: 'checkbox' },
+            { id: 'repetitionAbsence', title: 'Absence répétitions', type: 'checkbox' },
+            { id: 'mass', title: 'Présence messes', type: 'checkbox' },
+            { id: 'massAbsence', title: 'Absence messes', type: 'checkbox' },
+            { id: 'monthly', title: 'Mensualité payée', type: 'checkbox' },
+            { id: 'monthlyAmount', title: 'Montant mensualité', type: 'amount' },
+            { id: 'lent', title: 'Effort de Carême', type: 'checkbox' },
+            { id: 'lentAmount', title: 'Montant Carême', type: 'amount' },
+            { id: 'meeting', title: 'Cotisation réunion', type: 'checkbox' },
+            { id: 'meetingAmount', title: 'Montant réunion', type: 'amount' }
+        ];
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('currentDate').value = currentDate;
+            loadData();
+            initializeTables();
+        });
+        
+        function updateCurrentDate(date) {
+            currentDate = date;
+            Object.keys(choirData).forEach(voice => {
+                if (!choirData[voice][currentDate]) {
+                    choirData[voice][currentDate] = {};
+                    membersList[voice].forEach(memberName => {
+                        choirData[voice][currentDate][memberName] = {
+                            name: memberName,
+                            repetition: false,
+                            repetitionAbsence: false,
+                            mass: false,
+                            massAbsence: false,
+                            monthly: false,
+                            monthlyAmount: '',
+                            lent: false,
+                            lentAmount: '',
+                            meeting: false,
+                            meetingAmount: ''
+                        };
+                    });
+                }
+            });
+            initializeTables();
+            saveData();
+        }
+        
+        function loadData() {
+            const savedData = localStorage.getItem('choirData');
+            const savedMembers = localStorage.getItem('membersList');
+            
+            if (savedData) {
+                choirData = JSON.parse(savedData);
+            }
+            if (savedMembers) {
+                membersList = JSON.parse(savedMembers);
+            }
+        
+            Object.keys(membersList).forEach(voice => {
+                if (!choirData[voice]) {
+                    choirData[voice] = {};
+                }
+                if (!choirData[voice][currentDate]) {
+                    choirData[voice][currentDate] = {};
+                }
+                
+                membersList[voice].forEach(memberName => {
+                    if (!choirData[voice][currentDate][memberName]) {
+                        choirData[voice][currentDate][memberName] = {
+                            name: memberName,
+                            repetition: false,
+                            repetitionAbsence: false,
+                            mass: false,
+                            massAbsence: false,
+                            monthly: false,
+                            monthlyAmount: '',
+                            lent: false,
+                            lentAmount: '',
+                            meeting: false,
+                            meetingAmount: ''
+
+                            
+                        };
+                    }
+                });
+            });
+        
+            saveData();
+        }
+        
+        function saveData() {
+            try {
+                localStorage.setItem('choirData', JSON.stringify(choirData));
+                localStorage.setItem('membersList', JSON.stringify(membersList));
+            } catch (e) {
+                console.error('Erreur lors de la sauvegarde des données:', e);
+            }
+        }
+        
+        function initializeTables() {
+            Object.keys(choirData).forEach(voice => {
+                const table = document.getElementById(`${voice}Table`);
+                table.innerHTML = '';
+                generateTableContent(table, voice);
+            });
+        }
+        
+        function generateTableContent(table, voice) {
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col.title;
+                if (col.type === 'date') {
+                    th.classList.add('date-column');
+                }
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+        
+            const tbody = document.createElement('tbody');
+            membersList[voice].forEach((memberName, index) => {
+                const row = generateMemberRow(memberName, voice, index);
+                tbody.appendChild(row);
+            });
+            
+            table.appendChild(tbody);
+        }
+        
+        function generateMemberRow(memberName, voice, index) {
+            const row = document.createElement('tr');
+            
+            if (!choirData[voice][currentDate]) {
+                choirData[voice][currentDate] = {};
+            }
+            if (!choirData[voice][currentDate][memberName]) {
+                choirData[voice][currentDate][memberName] = {
+                    name: memberName,
+                            repetition: false,
+                            repetitionAbsence: false,
+                            mass: false,
+                            massAbsence: false,
+                            monthly: false,
+                            monthlyAmount: '',
+                            lent: false,
+                            lentAmount: '',
+                            meeting: false,
+                            meetingAmount: ''
+                };
+            }
+        
+            const memberData = choirData[voice][currentDate][memberName];
+        
+            columns.forEach(col => {
+                const cell = document.createElement('td');
+                if (col.id === 'date') {
+                    cell.innerHTML = `<input type="date" class="form-control" value="${currentDate}" disabled>`;
+                    cell.classList.add('date-column');
+                } else if (col.id === 'name') {
+                    cell.innerHTML = `<input type="text" class="form-control" value="${memberName}" 
+                        onchange="updateMemberName('${voice}', '${memberName}', this.value, ${index})">`;
+                    cell.classList.add('name-column');
+                } else if (col.type === 'checkbox') {
+                    cell.classList.add('checkbox-column');
+                    if (col.id.includes('Absence')) {
+                        // Pour les cases d'absence
+                        cell.innerHTML = `<div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                            ${memberData[col.id] ? 'checked' : ''} 
+                            onchange="handleAbsenceChange('${voice}', '${memberName}', '${col.id}', this.checked)">
+                        </div>`;
+                    } else {
+                        // Pour les cases de présence
+                        cell.innerHTML = `<div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                            ${memberData[col.id] ? 'checked' : ''} 
+                            onchange="handlePresenceChange('${voice}', '${memberName}', '${col.id}', this.checked)">
+                        </div>`;
+                    }
+                } else if (col.type === 'amount') {
+                    cell.innerHTML = `<input type="number" class="form-control amount-input" 
+                        value="${memberData[col.id] || ''}" 
+                        onchange="updateMemberData('${voice}', '${memberName}', '${col.id}', this.value)">`;
+                    cell.classList.add('amount-column');
+                }
+                row.appendChild(cell);
+            });
+            return row;
+        }
+        
+        function updateMemberName(voice, oldName, newName, index) {
+            if (newName && newName !== oldName) {
+                membersList[voice][index] = newName;
+                
+                Object.keys(choirData[voice]).forEach(date => {
+                    if (choirData[voice][date][oldName]) {
+                        choirData[voice][date][newName] = choirData[voice][date][oldName];
+                        delete choirData[voice][date][oldName];
+                    }
+                });
+                
+                saveData();
+                initializeTables();
+            }
+        }
+        
+        function updateMemberData(voice, memberName, field, value) {
+            if (!choirData[voice][currentDate]) {
+                choirData[voice][currentDate] = {};
+            }
+            if (!choirData[voice][currentDate][memberName]) {
+                choirData[voice][currentDate][memberName] = { name: memberName };
+            }
+            choirData[voice][currentDate][memberName][field] = value;
+            saveData();
+        }
+        
+        function addNewMember() {
+            const activeTab = document.querySelector('.tab-pane.active');
+            const voice = activeTab.id;
+            const newName = `Nouveau membre ${membersList[voice].length + 1}`;
+            
+            membersList[voice].push(newName);
+            
+            if (!choirData[voice][currentDate]) {
+                choirData[voice][currentDate] = {};
+            }
+            choirData[voice][currentDate][newName] = {
+                name: newName,
+                            repetition: false,
+                            repetitionAbsence: false,
+                            mass: false,
+                            massAbsence: false,
+                            monthly: false,
+                            monthlyAmount: '',
+                            lent: false,
+                            lentAmount: '',
+                            meeting: false,
+                            meetingAmount: ''
+            };
+            
+            saveData();
+            initializeTables();
+        }
+        
+        function printPage() {
+            saveData();
+            
+            window.print();
+            
+            setTimeout(() => {
+                loadData();
+                initializeTables();
+            }, 1000);
+        }
+        
+        function exportToExcel() {
+            saveData();
+            
+            let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+                       '<head><meta charset="UTF-8"><style>td, th { border: 1px solid #000; }</style></head><body>';
+            
+            Object.keys(choirData).forEach(voice => {
+                html += `<h2>${voice.toUpperCase()}</h2>`;
+                html += '<table border="1" style="width:100%">';
+                
+                // En-têtes
+                html += '<tr>';
+                columns.forEach(col => {
+                    html += `<th style="background-color: #f0f0f0;">${col.title}</th>`;
+                });
+                html += '</tr>';
+                
+                // Données
+                Object.keys(choirData[voice][currentDate] || {}).forEach(memberName => {
+                    const member = choirData[voice][currentDate][memberName];
+                    html += '<tr>';
+                    columns.forEach(col => {
+                        if (col.id === 'date') {
+                            html += `<td>${currentDate}</td>`;
+                        } else if (col.type === 'checkbox') {
+                            html += `<td>${member[col.id] ? '✓' : ''}</td>`;
+                        } else {
+                            html += `<td>${member[col.id] || ''}</td>`;
+                        }
+                    });
+                    html += '</tr>';
+                });
+                
+                html += '</table><br>';
+            });
+            
+            html += '</body></html>';
+        
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Suivi_Chorale_${currentDate}.xls`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        
+            setTimeout(() => {
+                loadData();
+                initializeTables();
+            }, 1000);
+        }
+       
+
+
+        // Ajouter ces nouvelles fonctions pour gérer les présences/absences
+        function handlePresenceChange(voice, memberName, field, checked) {
+            const absenceField = field + 'Absence';
+            if (checked) {
+                // Si présence cochée, décocher l'absence
+                choirData[voice][currentDate][memberName][absenceField] = false;
+            }
+            updateMemberData(voice, memberName, field, checked);
+            initializeTables();
+        }
+
+        function handleAbsenceChange(voice, memberName, field, checked) {
+            const presenceField = field.replace('Absence', '');
+            if (checked) {
+                // Si absence cochée, décocher la présence
+                choirData[voice][currentDate][memberName][presenceField] = false;
+            }
+            updateMemberData(voice, memberName, field, checked);
+            initializeTables();
+        }
+    </script>
+</body>
+</html>
+
+    
